@@ -1,42 +1,11 @@
 ---
-
-#rewrite of BPX SNOW ticket AD update / remove user script
-#Requires TLS 1.2 security
-#1. check for log file and create it (file = mm/dd/yyyy hh:mm:ss format)
-#2. assigns a snow ticket on failure to "L48 Help Desk"
-#3. If $action = add - add AD user to AD group and update SNOW ticket
-#4. if $action = remove - remove AD user from AD group and update SNOW ticket
-
-#####NOTES#######
-#in your ansible inventory for the windows hosts please make sure "ansible_connection: winrm " is set.
-
-#######variables that should be passed from SNOW########
-#action
-#user_obj
-#snow_user_name
-#snow_user_pass
-#instance
-#instance_number
-
-
 hosts: all
-gather_facts: false
-
+gather_facts: no
 vars:
-#get the date
-dateTimeYear: "{{ lookup('pipe','date' }}"
-#work notes for ticket when adding user
-added: "i added a user to AD and I'm awesome"
-#work notes for ticket when removing user
-removed: "i removed a user from AD cause they are not great"
+  added: "i added {{ user_obj }} to AD and I'm awesome"  #work notes for ticket when adding user
+  removed: "i removed {{ user_obj }} from AD cause they are not great" #work notes for ticket when removing user
 
 tasks:
-  
-  - name: Create Log file -- requires ansible.windows.collection
-    ansible.windows.win_file:
-      path: "C:\Temp\AD_Automation_logs_" + "{{ dateTimeYear }}" + ".txt"
-      state: touch 
-
   - name: Add user to AD and update SNOW ticket
     block:
     - name: add user from AD - need collection community.windows
@@ -76,4 +45,19 @@ tasks:
             work_notes : "{{ removed }}"
     when: "{{ action }} == remove"
 
-    
+#####NOTES#######
+
+#Requires TLS 1.2 security
+#1. check for log file and create it (file = mm/dd/yyyy hh:mm:ss format)
+#2. assigns a snow ticket on failure to "L48 Help Desk"
+#3. If $action = add - add AD user to AD group and update SNOW ticket
+#4. if $action = remove - remove AD user from AD group and update SNOW ticket
+
+#in your ansible inventory for the windows hosts please make sure "ansible_connection: winrm " is set.
+#Snow user and pass can be set up as a credential in Controller.
+
+#######variables that should be passed from SNOW########
+#action
+#user_obj
+#instance
+#instance_number
