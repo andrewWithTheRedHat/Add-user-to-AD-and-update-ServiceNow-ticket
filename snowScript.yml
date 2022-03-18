@@ -1,0 +1,79 @@
+---
+
+#rewrite of BPX SNOW ticket AD update / remove user script
+#Requires TLS 1.2 security
+#1. check for log file and create it (file = mm/dd/yyyy hh:mm:ss format)
+#2. assigns a snow ticket on failure to "L48 Help Desk"
+#3. If $action = add - add AD user to AD group and update SNOW ticket
+#4. if $action = remove - remove AD user from AD group and update SNOW ticket
+
+#####NOTES#######
+#in your ansible inventory for the windows hosts please make sure "ansible_connection: winrm " is set.
+
+#######variables that should be passed from SNOW########
+#action
+#user_obj
+#snow_user_name
+#snow_user_pass
+#instance
+#instance_number
+
+
+hosts: all
+gather_facts: false
+
+vars:
+#get the date
+dateTimeYear: "{{ lookup('pipe','date' }}"
+#work notes for ticket when adding user
+added: "i added a user to AD and I'm awesome"
+#work notes for ticket when removing user
+removed: "i removed a user from AD cause they are not great"
+
+tasks:
+  
+  - name: Create Log file -- requires ansible.windows.collection
+    ansible.windows.win_file:
+      path: "C:\Temp\AD_Automation_logs_" + "{{ dateTimeYear }}" + ".txt"
+      state: touch 
+
+  - name: Add user to AD and update SNOW ticket
+    block:
+    - name: add user from AD - need collection community.windows
+      community.windows.win_domain_user:
+        name: "{{ user_obj }}"
+        state: present
+        domain_server: "AD.BPX.COM"
+
+    - name: update SNOW ticket with changes - requires servicenow.servicenow
+      servicenow.servicenow.snow_record:
+        username: {{ snow_user_name }}
+        password: {{ snow_user_pass }}
+        instance: {{ instance }}
+        state: present
+        number: {{ instance_number }}
+        data:
+          work_notes : "{{ added }}"
+    when: "{{ action }} == add"
+
+  - name: Remove user from AD and update SNOW ticket
+    block:
+      - name: remove user from AD - need collection community.windows
+        community.windows.win_domain_user:
+          name: "{{ user_obj }}"
+          state: absent
+          domain_server: "AD.BPX.COM"
+        when: "{{ action }} == remove"
+  
+      - name: update SNOW ticket with changes - requires servicenow.servicenow
+        servicenow.servicenow.snow_record:
+          username: {{ snow_user_name }}
+          password: {{ snow_user_pass }}
+          instance: {{ instance }}
+          state: present
+          number: {{ instance_number }}
+          data:
+            work_notes : "{{ removed }}"
+    when: "{{ action }} == remove"
+
+    
